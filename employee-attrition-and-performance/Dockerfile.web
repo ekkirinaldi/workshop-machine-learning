@@ -1,0 +1,19 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Copy requirements and install dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy the application file
+COPY main.py .
+
+# Expose the port
+EXPOSE 8501
+
+# Set the API URL environment variable
+ENV API_URL=http://inference:8000
+
+# Run the Streamlit interface
+CMD ["streamlit", "run", "main.py"] 
