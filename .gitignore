@@ -2,3 +2,7 @@
 .vscode
 .venv
 .gitignore
+/employee-attrition-and-performance/xgboost_model.pkl
+/employee-attrition-and-performance/venv
+payroll_modelling/__pycache__
+payroll_modelling/venv
