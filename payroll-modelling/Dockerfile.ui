@@ -1,0 +1,16 @@
+FROM python:3.9-slim
+
+WORKDIR /app
+
+# Copy requirements first to leverage Docker cache
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+# Copy only the UI file
+COPY payroll_ui.py .
+
+# Expose Streamlit port
+EXPOSE 8501
+
+# Start Streamlit server
+CMD ["streamlit", "run", "payroll_ui.py", "--server.address", "0.0.0.0"] 
