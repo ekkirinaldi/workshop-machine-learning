@@ -52,7 +52,7 @@ payroll-modelling/
 
 2. Clone or download this repository:
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/ekkirinaldi/workshop-machine-learning
    cd payroll-modelling
    ```
 

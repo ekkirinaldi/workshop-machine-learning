@@ -1,3 +1,19 @@
+"""
+Employee Attrition Prediction Inference API
+
+This script implements a FastAPI service for making predictions using the trained XGBoost model.
+It provides a RESTful API interface for real-time predictions and model health checks.
+
+Key Features:
+- FastAPI RESTful endpoints
+- Real-time predictions
+- Input validation
+- Error handling
+- Health check endpoint
+- API documentation
+- Cross-platform compatibility
+"""
+
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 import pickle
@@ -6,35 +22,76 @@ import uvicorn
 from pydantic import BaseModel
 import os
 from typing import Dict, Any
+import logging
 
-# FastAPI app
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+# Initialize FastAPI app with metadata
 app = FastAPI(
     title="Employee Attrition Prediction API",
     description="API for predicting employee attrition using XGBoost model",
     version="1.0.0"
 )
 
-def get_model_path():
-    """Get the absolute path to the model file."""
+def get_model_path() -> str:
+    """
+    Get the absolute path to the model file.
+    
+    Returns:
+        str: Absolute path to the model file
+        
+    Note:
+        Uses os.path for cross-platform compatibility
+    """
     script_dir = os.path.dirname(os.path.abspath(__file__))
     return os.path.join(script_dir, 'xgboost_model.pkl')
 
-def preprocess_data(data):
-    # Drop unnecessary columns if they exist
-    cols_to_drop = ['EmployeeCount', 'EmployeeNumber', 'Over18', 'StandardHours']
-    for col in cols_to_drop:
-        if col in data.columns:
-            data = data.drop(col, axis=1)
+def preprocess_data(data: pd.DataFrame) -> pd.DataFrame:
+    """
+    Preprocess input data for prediction.
     
-    # Convert categorical variables
-    categorical_columns = data.select_dtypes(include=['object']).columns
-    le = LabelEncoder()
-    for col in categorical_columns:
-        data[col] = le.fit_transform(data[col])
-    
-    return data
+    Args:
+        data (pd.DataFrame): Input data for prediction
+        
+    Returns:
+        pd.DataFrame: Preprocessed data ready for prediction
+        
+    Processing Steps:
+    1. Drop unnecessary columns
+    2. Convert categorical variables
+    3. Ensure feature order matches training
+    """
+    try:
+        # Drop unnecessary columns if they exist
+        cols_to_drop = ['EmployeeCount', 'EmployeeNumber', 'Over18', 'StandardHours']
+        for col in cols_to_drop:
+            if col in data.columns:
+                data = data.drop(col, axis=1)
+        
+        # Convert categorical variables
+        categorical_columns = data.select_dtypes(include=['object']).columns
+        le = LabelEncoder()
+        for col in categorical_columns:
+            data[col] = le.fit_transform(data[col])
+        
+        return data
+    except Exception as e:
+        logger.error(f"Error in data preprocessing: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Data preprocessing error: {str(e)}"
+        )
 
 class PredictionInput(BaseModel):
+    """
+    Pydantic model for input validation.
+    Defines the expected structure and types of prediction input data.
+    """
     Age: int
     BusinessTravel: str
     DailyRate: int
@@ -67,27 +124,57 @@ class PredictionInput(BaseModel):
     YearsWithCurrManager: int
 
 @app.get("/")
-async def root():
+async def root() -> Dict[str, Any]:
     """
-    Root endpoint that provides API information and checks model availability.
+    Root endpoint for API health check and information.
+    
+    Returns:
+        Dict[str, Any]: API status and information
+        
+    Checks:
+    1. API running status
+    2. Model availability
+    3. Available endpoints
     """
-    model_path = get_model_path()
-    model_status = "available" if os.path.exists(model_path) else "not available"
-    return {
-        "status": "API is running",
-        "model_status": model_status,
-        "endpoints": {
-            "root": "GET /",
-            "predict": "POST /predict",
-            "docs": "GET /docs"
-        },
-        "message": "Use POST /predict for attrition predictions or visit /docs for API documentation"
-    }
+    try:
+        model_path = get_model_path()
+        model_status = "available" if os.path.exists(model_path) else "not available"
+        return {
+            "status": "API is running",
+            "model_status": model_status,
+            "endpoints": {
+                "root": "GET /",
+                "predict": "POST /predict",
+                "docs": "GET /docs"
+            },
+            "message": "Use POST /predict for attrition predictions or visit /docs for API documentation"
+        }
+    except Exception as e:
+        logger.error(f"Error in root endpoint: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"API error: {str(e)}"
+        )
 
 @app.post("/predict")
 async def predict(input_data: PredictionInput) -> Dict[str, Any]:
     """
     Make attrition predictions using the trained XGBoost model.
+    
+    Args:
+        input_data (PredictionInput): Input data for prediction
+        
+    Returns:
+        Dict[str, Any]: Prediction results including:
+            - probability_of_attrition
+            - prediction
+            - confidence
+        
+    Steps:
+    1. Load model
+    2. Preprocess input
+    3. Make prediction
+    4. Return results
     """
     try:
         model_path = get_model_path()
@@ -141,20 +228,39 @@ async def predict(input_data: PredictionInput) -> Dict[str, Any]:
     except HTTPException:
         raise
     except Exception as e:
+        logger.error(f"Unexpected error in prediction: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=f"Unexpected error: {str(e)}"
         )
 
-def start_server(host="0.0.0.0", port=8000):
-    """Start the FastAPI server with the specified host and port."""
+def start_server(host: str = "0.0.0.0", port: int = 8000) -> None:
+    """
+    Start the FastAPI server.
+    
+    Args:
+        host (str): Host address to bind to
+        port (int): Port number to listen on
+        
+    Note:
+        Uses uvicorn for ASGI server implementation
+    """
     try:
+        logger.info(f"Starting server on {host}:{port}")
         uvicorn.run(app, host=host, port=port)
     except Exception as e:
-        print(f"Error starting server: {str(e)}")
+        logger.error(f"Error starting server: {str(e)}")
         raise
 
 if __name__ == "__main__":
-    # Get port from environment variable or use default
-    port = int(os.getenv("PORT", 8000))
-    start_server(port=port)
+    """
+    Main execution block.
+    Starts the FastAPI server with configuration from environment variables.
+    """
+    try:
+        # Get port from environment variable or use default
+        port = int(os.getenv("PORT", 8000))
+        start_server(port=port)
+    except Exception as e:
+        logger.error(f"Server startup failed: {str(e)}")
+        raise

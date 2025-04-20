@@ -1,3 +1,26 @@
+"""
+Payroll Training Script
+
+This script trains a linear regression model to predict annual salary based on quarterly payments.
+It handles data loading, preprocessing, model training, and model saving.
+
+Features:
+- Cross-platform file path handling
+- Data validation and cleaning
+- Linear regression model training
+- Model performance evaluation
+- Error handling and logging
+
+Usage:
+    python payroll_train.py
+
+The script will:
+1. Load training data from data-payroll.csv
+2. Clean and preprocess the data
+3. Train a linear regression model
+4. Save the model to payroll_model.pkl
+"""
+
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
@@ -7,7 +30,18 @@ import os
 from pathlib import Path
 
 def train_model():
-    # Get the current directory
+    """
+    Train a linear regression model for payroll prediction.
+    
+    Returns:
+        bool: True if training was successful, False otherwise.
+    
+    Raises:
+        FileNotFoundError: If training data file is not found
+        ValueError: If data processing fails
+        Exception: For other unexpected errors
+    """
+    # Get the current directory for cross-platform compatibility
     current_dir = Path(__file__).parent.absolute()
     
     # Define paths using Path for cross-platform compatibility
@@ -15,7 +49,7 @@ def train_model():
     model_path = current_dir / 'payroll_model.pkl'
     
     try:
-        # Load data
+        # Load and validate data
         if not data_path.exists():
             raise FileNotFoundError(f"Training data not found at {data_path}")
             
